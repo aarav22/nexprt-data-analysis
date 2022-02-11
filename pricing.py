@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from itertools import groupby
 from pandas.io.json import json_normalize
 
+## Setting up a time period
 time_period = st.radio(
     "Select temporal aggregation period",
     ('Daily', 'Weekly'))
@@ -19,7 +20,7 @@ if time_period == 'Daily':
 else:
     time_period = 7
 
-
+## Another interactive feature which selects only approved docs
 is_approved = st.radio(
     "Do you want only approved docs?",
     ('Yes', 'No'))
@@ -28,13 +29,15 @@ if is_approved == 'Yes':
     is_approved = True
 else:
     is_approved = False
-# utility functions:
-
-
+    
+    
+# utility function to group data into either weeks or days:
 def group_util(date, min_date):
     return (date-min_date).days // time_period
 
+### Getters
 
+## To get timestamps for showing trends in time
 def get_timestamps(items):
     timestamps = []
     for item in items:
@@ -43,7 +46,7 @@ def get_timestamps(items):
             timestamps += [dt.date()]
     return timestamps
 
-
+## To get the data for modifications after approval
 def get_modifications(items):
     data = []
     p = []
@@ -67,7 +70,7 @@ def get_modifications(items):
             print("Error: ", e)
     return data
 
-
+## To get the data for approval trends
 def get_approvals(items):
     data = []
     try:
@@ -81,7 +84,7 @@ def get_approvals(items):
         print("Error: ", e)
     return data
 
-
+## To get the date for the use of misc field
 def get_misc(items):
     data = []
     for item in items:
@@ -99,7 +102,7 @@ def get_misc(items):
             print("Error: ", e)
     return data
 
-
+## To get TAT data
 def get_tat(items):
     data = []
     for item in items:
@@ -119,6 +122,8 @@ def get_tat(items):
             print("Error: ", e)
     return data
 
+
+### Showing the data
 
 def show_timetrends(items):
     timestamps = get_timestamps(items)
@@ -161,8 +166,6 @@ def show_timetrends(items):
     chart_data = pd.DataFrame(Y, index=X, columns=['count'])
     st.subheader('Time Trends')
     st.line_chart(chart_data)
-    # print("LEN: ", items.count_documents())
-
 
 def show_approval(items):
     data = get_approvals(items)
@@ -262,14 +265,21 @@ def show_modifications(items):
     st.line_chart(df_1)
 
 
+
+## Entry point for the file:
 if __name__ == '__main__':
     st.title('Pricing Trends')
+    
+    ## Establishing connection to the database:
     mongoClient = MongoClient(
         "mongodb+srv://candidate:candidate2022@cluster0.p8u2o.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
     db = mongoClient['master-catalogue']['test-temp']
+    
+    ## Extracting data from the database with no ObjectIds:
     items = db.find({}, {'_id': False})
     l = list(items)
 
+    ## Cleaning and making the db consistent
     for index in range(0, len(l)):
         if l[index]['timestamp'] is not None\
                 and l[index]['timestamp'] != ''\
@@ -292,8 +302,11 @@ if __name__ == '__main__':
                     l[index]['approvalTimestamp'] = l[index]['approvalTimestamp'][0]
                     
 
+    ## Getting a data of a particular range given by the slider:
     min_date = min(l, key=lambda x: x['createdAt'])['createdAt']
     max_date = max(l, key=lambda x: x['createdAt'])['createdAt']
+    
+    ## Code for the slider
     values = st.slider(
         "When do you start?",
         min_date,
@@ -302,7 +315,7 @@ if __name__ == '__main__':
         format="MM/DD/YY - hh:mm")
     
     st.write('Values:', values)
-    print(values)
+    
     # exclude items that do not fit in the time range values[0] and values[1]:
     l = [item for item in l if item['createdAt'].replace(tzinfo=None) >= values[0].replace(
         tzinfo=None) and item['createdAt'].replace(tzinfo=None) <= values[1].replace(tzinfo=None)]
@@ -313,14 +326,14 @@ if __name__ == '__main__':
     # show time trends:
     show_timetrends(l)
 
-    # # # show approval:
+    ## show approval:
     show_approval(l)
 
-    # # #show tat:
+    ## show tat:
     show_tat(l)
 
-    # ## show misc:
+    ## show misc:
     show_misc(l)
 
-    # show modifications:
+    ## show modifications:
     show_modifications(l)
